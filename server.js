@@ -12,7 +12,7 @@ let db;
 let collection;
 
 // Connect to MongoDB
-MongoClient.connect(url, { useUnifiedTopology: true })
+MongoClient.connect(url)
     .then((client) => {
         console.log('Connected to MongoDB');
         db = client.db(dbName);
@@ -37,12 +37,17 @@ const wss = new WebSocket.Server({ server });
 let generating = false;
 let totalCount = 0;
 
-// Function to generate a P2PKH Bitcoin address and its WIF key
+// Function to generate a P2PKH Bitcoin address and its WIF key (both compressed and uncompressed)
 function generateBitcoinAddress() {
-    const keyPair = ECPair.makeRandom(); // Generate a new key pair
-    const { address } = payments.p2pkh({ pubkey: keyPair.publicKey }); // Get the address
-    const wifKey = keyPair.toWIF(); // Get the WIF (Wallet Import Format) key
-    return { address, wifKey };
+    const keyPairCompressed = ECPair.makeRandom();
+    const { address: addressCompressed } = payments.p2pkh({ pubkey: keyPairCompressed.publicKey });
+    const wifKeyCompressed = keyPairCompressed.toWIF();
+
+    const keyPairUncompressed = ECPair.makeRandom({ compressed: false });
+    const { address: addressUncompressed } = payments.p2pkh({ pubkey: keyPairUncompressed.publicKey });
+    const wifKeyUncompressed = keyPairUncompressed.toWIF();
+
+    return { addressCompressed, wifKeyCompressed, addressUncompressed, wifKeyUncompressed };
 }
 
 // Function to check if an address exists in the MongoDB collection
@@ -55,7 +60,6 @@ async function checkAddressInDB(address) {
     try {
         // Search for the address in MongoDB
         const result = await collection.findOne({ _id: address });
-        // console.log(result);
         return result; // Return the result if found, or null if not
     } catch (err) {
         console.error('Error querying MongoDB:', err);
@@ -83,29 +87,50 @@ wss.on('connection', (ws) => {
                     }
 
                     // Generate a new Bitcoin address and WIF key
-                    const { address, wifKey } = generateBitcoinAddress();
+                    const { addressCompressed, wifKeyCompressed, addressUncompressed, wifKeyUncompressed } = generateBitcoinAddress();
                     totalCount++;
 
-                    // Check if the address exists in the MongoDB database
-                    const existingAddress = await checkAddressInDB(address);
+                    // Check if the compressed address exists in the MongoDB database
+                    const existingCompressedAddress = await checkAddressInDB(addressCompressed);
+                    const existingUncompressedAddress = await checkAddressInDB(addressUncompressed);
 
-                    // If the address exists, display the saved balance and details
-                    if (existingAddress) {
-                        const { balance } = existingAddress;
+                    // If the compressed address exists, display the saved balance and details
+                    if (existingCompressedAddress) {
+                        const { balance } = existingCompressedAddress;
 
                         ws.send(JSON.stringify({
                             action: 'found',
-                            address,
-                            wifKey,
+                            address: addressCompressed,
+                            wifKey: wifKeyCompressed,
                             balance,
                             totalCount,
                         }));
                     } else {
-                        // If the address doesn't exist, display only the generated key and address
+                        // If the compressed address doesn't exist, display only the generated key and address
                         ws.send(JSON.stringify({
                             action: 'generated',
-                            address,
-                            wifKey,
+                            address: addressCompressed,
+                            wifKey: wifKeyCompressed,
+                            totalCount,
+                        }));
+                    }
+
+                    // Handle uncompressed address similarly
+                    if (existingUncompressedAddress) {
+                        const { balance } = existingUncompressedAddress;
+
+                        ws.send(JSON.stringify({
+                            action: 'found',
+                            address: addressUncompressed,
+                            wifKey: wifKeyUncompressed,
+                            balance,
+                            totalCount,
+                        }));
+                    } else {
+                        ws.send(JSON.stringify({
+                            action: 'generated',
+                            address: addressUncompressed,
+                            wifKey: wifKeyUncompressed,
                             totalCount,
                         }));
                     }
