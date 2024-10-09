@@ -98,10 +98,8 @@
     let intervalId;
     let generating = false;
 
-    // Initialize WebSocket connection
     const socket = new WebSocket('ws://localhost:8080');
 
-    // Update WebSocket status function
     function updateWebSocketStatus(status) {
         wsStatus.textContent = `WebSocket Status: ${status}`;
         wsStatus.className = `status ${status.toLowerCase()}`;
