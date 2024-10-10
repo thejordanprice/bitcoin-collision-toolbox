@@ -54,14 +54,6 @@ function generateBitcoinAddresses() {
     // Derive Bech32 address
     const { address: addressBech32 } = payments.p2wpkh({ pubkey: keyPair.publicKey });
 
-    // Derive P2SH address
-    const script = payments.p2pkh({ pubkey: keyPair.publicKey }).output;
-    const { address: addressP2SH } = payments.p2sh({ redeem: { output: script } });
-
-    // Derive P2WSH address (using a dummy script for illustration)
-    const witnessScript = payments.p2ms({ m: 2, pubkeys: [keyPair.publicKey, keyPair.publicKey] }).output;
-    const { address: addressP2WSH } = payments.p2wsh({ redeem: { output: witnessScript } });
-
     // Return all addresses, WIFs, and keyPair for Bech32
     return {
         keyPair,
@@ -70,10 +62,6 @@ function generateBitcoinAddresses() {
         addressUncompressed,
         wifKeyUncompressed,
         addressBech32,
-        addressP2SH,
-        addressP2WSH,
-        p2shKeyPair: keyPair,
-        p2wshKeyPair: ECPair.fromPublicKey(keyPair.publicKey),
     };
 }
 
@@ -117,9 +105,7 @@ wss.on('connection', (ws) => {
                         wifKeyCompressed,
                         addressUncompressed,
                         wifKeyUncompressed,
-                        addressBech32,
-                        addressP2SH,
-                        addressP2WSH,
+                        addressBech32
                     } = generateBitcoinAddresses();
                     totalCount++;
 
@@ -127,8 +113,6 @@ wss.on('connection', (ws) => {
                     const existingCompressedAddress = await checkAddressInDB(addressCompressed);
                     const existingUncompressedAddress = await checkAddressInDB(addressUncompressed);
                     const existingBech32Address = await checkAddressInDB(addressBech32);
-                    // const existingP2SHAddress = await checkAddressInDB(addressP2SH);
-                    // const existingP2WSHAddress = await checkAddressInDB(addressP2WSH);
 
                     // Handle results for compressed address
                     if (existingCompressedAddress) {
@@ -186,48 +170,6 @@ wss.on('connection', (ws) => {
                             totalCount,
                         }));
                     }
-
-                    // Handle results for P2SH address
-                    /**
-                    if (existingP2SHAddress) {
-                        const { balance } = existingP2SHAddress;
-                        ws.send(JSON.stringify({
-                            action: 'found',
-                            address: addressP2SH,
-                            wifKey: keyPair.toWIF(),
-                            balance,
-                            totalCount,
-                        }));
-                    } else {
-                        ws.send(JSON.stringify({
-                            action: 'generated',
-                            address: addressP2SH,
-                            wifKey: keyPair.toWIF(),
-                            totalCount,
-                        }));
-                    }
-                    */
-
-                    // Handle results for P2WSH address
-                    /**
-                    if (existingP2WSHAddress) {
-                        const { balance } = existingP2WSHAddress;
-                        ws.send(JSON.stringify({
-                            action: 'found',
-                            address: addressP2WSH,
-                            wifKey: keyPair.toWIF(),
-                            balance,
-                            totalCount,
-                        }));
-                    } else {
-                        ws.send(JSON.stringify({
-                            action: 'generated',
-                            address: addressP2WSH,
-                            wifKey: keyPair.toWIF(),
-                            totalCount,
-                        }));
-                    }
-                    */
                 }, 0);
             }
         } else if (command.action === 'stop') {
@@ -237,7 +179,7 @@ wss.on('connection', (ws) => {
 
     ws.on('close', () => {
         console.log('Client disconnected');
-        generating = false; // Stop generation when client disconnects
+        generating = false;
     });
 });
 
