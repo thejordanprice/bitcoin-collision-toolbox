@@ -1,0 +1,7 @@
+{
+  "dependencies": {
+    "bitcoinjs-lib": "5.0.0",
+    "mongodb": "^6.10.0",
+    "ws": "^8.18.0"
+  }
+}
